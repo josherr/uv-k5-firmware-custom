@@ -37,6 +37,10 @@
 #include "ui/main.h"
 #include "ui/ui.h"
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "frs_appliance/frs.h"
+#endif
+
 center_line_t center_line = CENTER_LINE_NONE;
 
 const int8_t dBmCorrTable[7] = {
@@ -53,7 +57,12 @@ const char *VfoStateStr[] = {
        [VFO_STATE_NORMAL]="",
        [VFO_STATE_BUSY]="BUSY",
        [VFO_STATE_BAT_LOW]="BAT LOW",
+#ifdef FRS_APPLIANCE_BUILD
+       /* In FRS mode, TX_DISABLE means the TX gate rejected the attempt */
+       [VFO_STATE_TX_DISABLE]="FRS ONLY",
+#else
        [VFO_STATE_TX_DISABLE]="TX DISABLE",
+#endif
        [VFO_STATE_TIMEOUT]="TIMEOUT",
        [VFO_STATE_ALARM]="ALARM",
        [VFO_STATE_VOLTAGE_HIGH]="VOLT HIGH"
@@ -436,10 +445,24 @@ void UI_DisplayMain(void)
 		{	// channel mode
 			const unsigned int x = 2;
 			const bool inputting = gInputBoxIndex != 0 && gEeprom.TX_VFO == vfo_num;
+#ifdef FRS_APPLIANCE_BUILD
+			/* Show "FRS nn" (FRS channel number 1-based) instead of "Mnn"
+			 * so the display matches commercial FRS radio conventions. */
+			if (!inputting) {
+				uint8_t ch = gEeprom.ScreenChannel[vfo_num];
+				if (FRS_IsValidChannel(ch))
+					sprintf(String, "FRS%2u", ch + 1u);
+				else
+					sprintf(String, "M%u", ch + 1);
+			} else {
+				sprintf(String, "M%.3s", INPUTBOX_GetAscii());
+			}
+#else
 			if (!inputting)
 				sprintf(String, "M%u", gEeprom.ScreenChannel[vfo_num] + 1);
 			else
 				sprintf(String, "M%.3s", INPUTBOX_GetAscii());  // show the input text
+#endif
 			UI_PrintStringSmallNormal(String, x, 0, line + 1);
 		}
 		else if (IS_FREQ_CHANNEL(gEeprom.ScreenChannel[vfo_num]))

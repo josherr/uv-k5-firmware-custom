@@ -27,6 +27,10 @@
 #include "settings.h"
 #include "ui/menu.h"
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "frs_appliance/frs.h"
+#endif
+
 static const uint32_t gDefaultFrequencyTable[] =
 {
 	14500000,    //

@@ -37,6 +37,10 @@
 #include "settings.h"
 #include "ui/menu.h"
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "frs_appliance/frs.h"
+#endif
+
 VFO_Info_t    *gTxVfo;
 VFO_Info_t    *gRxVfo;
 VFO_Info_t    *gCurrentVfo;
@@ -790,6 +794,30 @@ void RADIO_SetTxParameters(void)
 
 	BK4819_PickRXFilterPathBasedOnFrequency(gCurrentVfo->pTX->Frequency);
 
+#ifdef FRS_APPLIANCE_BUILD
+	/*
+	 * FRS APPLIANCE — PA ENABLE GATE (third layer, deepest defense)
+	 *
+	 * This check runs immediately before the power amplifier is
+	 * enabled.  It is the last barrier between firmware logic and
+	 * the RF hardware.  If any higher-layer check was bypassed
+	 * (e.g., a future code path or memory corruption), this gate
+	 * prevents the PA from being energized for a non-FRS TX.
+	 *
+	 * Fail-closed: if FRS_IsTxAllowed returns false here, we disable
+	 * the PA GPIO, disable the BK4819 TX driver, restore RX, and
+	 * return without transmitting.
+	 */
+	if (!FRS_IsTxAllowed(gCurrentVfo->pTX->Frequency, gCurrentVfo)) {
+		/* Ensure PA stays disabled */
+		BK4819_ToggleGpioOut(BK4819_GPIO1_PIN29_PA_ENABLE, false);
+		BK4819_SetupPowerAmplifier(0, 0);
+		/* Red LED off — no TX indication */
+		BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, false);
+		return;
+	}
+#endif
+
 	BK4819_ToggleGpioOut(BK4819_GPIO1_PIN29_PA_ENABLE, true);
 
 	SYSTEM_DelayMs(5);
@@ -928,7 +956,23 @@ void RADIO_PrepareTX(void)
 	){
 		// TX frequency not allowed
 		State = VFO_STATE_TX_DISABLE;
-	} else if (SerialConfigInProgress()) {
+	}
+#ifdef FRS_APPLIANCE_BUILD
+	/*
+	 * FRS APPLIANCE — SECONDARY TX GATE (defense-in-depth)
+	 *
+	 * TX_freq_check() above already blocks non-FRS frequencies.
+	 * This second gate additionally verifies bandwidth, modulation,
+	 * power limits, and the absence of TX offsets — conditions that
+	 * TX_freq_check() does not inspect.
+	 *
+	 * Both gates must pass before TX is allowed.
+	 */
+	else if (!FRS_IsTxAllowed(gCurrentVfo->pTX->Frequency, gCurrentVfo)) {
+		State = VFO_STATE_TX_DISABLE;
+	}
+#endif
+	else if (SerialConfigInProgress()) {
 		// TX is disabled or config upload/download in progress
 		State = VFO_STATE_TX_DISABLE;
 	} else if (gCurrentVfo->BUSY_CHANNEL_LOCK && gCurrentFunction == FUNCTION_RECEIVE) {

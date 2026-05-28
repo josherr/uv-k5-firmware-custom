@@ -36,6 +36,20 @@
 #include "menu.h"
 #include "ui.h"
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "../frs_appliance/frs.h"
+#endif
+
+
+/* ================================================================
+ * Menu item list
+ *
+ * In FRS_APPLIANCE_BUILD the menu is restricted to items that are
+ * safe for a Part 95 FRS appliance.  Dangerous items that could
+ * enable non-FRS TX are removed at compile time — it is NOT
+ * sufficient to merely hide them.
+ * ================================================================ */
+#ifndef FRS_APPLIANCE_BUILD
 
 const t_menu_item MenuList[] =
 {
@@ -143,6 +157,101 @@ const t_menu_item MenuList[] =
 };
 
 const uint8_t FIRST_HIDDEN_MENU_ITEM = MENU_F_LOCK;
+
+#else /* FRS_APPLIANCE_BUILD */
+
+/*
+ * FRS APPLIANCE MENU
+ *
+ * This list deliberately omits items that could enable non-FRS TX:
+ *   - No MENU_STEP  (step is fixed at 12.5 kHz)
+ *   - No MENU_SFT_D / MENU_OFFSET  (TX offsets blocked by TX gate)
+ *   - No MENU_W_N   (bandwidth forced to narrow by TX gate)
+ *   - No MENU_SCR   (scrambler cleared by EEPROM sanitizer)
+ *   - No MENU_AM    (modulation forced to FM by TX gate)
+ *   - No MENU_MEM_CH / MENU_DEL_CH  (FRS channels are immutable)
+ *   - No MENU_F_LOCK / MENU_200TX / MENU_350TX / MENU_500TX  (TX unlock)
+ *   - No MENU_350EN / MENU_SCREN  (TX expansion / scrambler enable)
+ *   - No MENU_TDR   (dual-watch / cross-band TX paths)
+ *
+ * Removing these from the MenuList removes the code path entirely;
+ * it is not just hidden behind a display flag.
+ */
+const t_menu_item MenuList[] =
+{
+//   text,      voice ID,               menu ID
+	/* -- Per-channel settings ---------------------------------- */
+	{"FRSPwr",  VOICE_ID_POWER,         MENU_TXP           }, /* TX power (gate enforces legal limit) */
+	{"RxDCS",   VOICE_ID_DCS,           MENU_R_DCS         }, /* RX DCS tone squelch                  */
+	{"RxCTCS",  VOICE_ID_CTCSS,         MENU_R_CTCS        }, /* RX CTCSS tone squelch                */
+	{"TxDCS",   VOICE_ID_DCS,           MENU_T_DCS         }, /* TX DCS code                          */
+	{"TxCTCS",  VOICE_ID_CTCSS,         MENU_T_CTCS        }, /* TX CTCSS tone                        */
+	{"BusyCL",  VOICE_ID_BUSY_LOCKOUT,  MENU_BCL           }, /* Busy-channel lockout                 */
+	{"Compnd",  VOICE_ID_INVALID,       MENU_COMPAND       }, /* Compander (optional)                 */
+	{"ChName",  VOICE_ID_INVALID,       MENU_MEM_NAME      }, /* Channel name / label (10 chars)      */
+
+	/* -- Scan -------------------------------------------------- */
+	{"SList",   VOICE_ID_INVALID,       MENU_S_LIST        }, /* Scan list selection                  */
+	{"SList1",  VOICE_ID_INVALID,       MENU_SLIST1        }, /* Scan list 1 channel include          */
+	{"SList2",  VOICE_ID_INVALID,       MENU_SLIST2        }, /* Scan list 2 channel include          */
+	{"ScnRev",  VOICE_ID_INVALID,       MENU_SC_REV        }, /* Scan resume mode                     */
+#ifdef ENABLE_NOAA
+	{"NOAA-S",  VOICE_ID_INVALID,       MENU_NOAA_S        }, /* NOAA weather RX scan (receive-only)  */
+#endif
+
+	/* -- Key assignments --------------------------------------- */
+	{"F1Shrt",  VOICE_ID_INVALID,       MENU_F1SHRT        },
+	{"F1Long",  VOICE_ID_INVALID,       MENU_F1LONG        },
+	{"F2Shrt",  VOICE_ID_INVALID,       MENU_F2SHRT        },
+	{"F2Long",  VOICE_ID_INVALID,       MENU_F2LONG        },
+	{"M Long",  VOICE_ID_INVALID,       MENU_MLONG         },
+
+	/* -- Global settings --------------------------------------- */
+	{"KeyLck",  VOICE_ID_INVALID,       MENU_AUTOLK        }, /* Auto keypad lock                     */
+	{"TxTOut",  VOICE_ID_TRANSMIT_OVER_TIME, MENU_TOT      }, /* TX timeout (required by §95.589)     */
+	{"BatSav",  VOICE_ID_SAVE_MODE,     MENU_SAVE          }, /* Battery save                         */
+	{"Mic",     VOICE_ID_INVALID,       MENU_MIC           }, /* Microphone gain                      */
+#ifdef ENABLE_AUDIO_BAR
+	{"MicBar",  VOICE_ID_INVALID,       MENU_MIC_BAR       },
+#endif
+	{"ChDisp",  VOICE_ID_INVALID,       MENU_MDF           }, /* Channel display mode                 */
+	{"POnMsg",  VOICE_ID_INVALID,       MENU_PONMSG        }, /* Power-on message                     */
+	{"BatTxt",  VOICE_ID_INVALID,       MENU_BAT_TXT       },
+	{"BackLt",  VOICE_ID_INVALID,       MENU_ABR           }, /* Backlight timeout                    */
+	{"BLMin",   VOICE_ID_INVALID,       MENU_ABR_MIN       },
+	{"BLMax",   VOICE_ID_INVALID,       MENU_ABR_MAX       },
+	{"BltTRX",  VOICE_ID_INVALID,       MENU_ABR_ON_TX_RX  },
+	{"Beep",    VOICE_ID_BEEP_PROMPT,   MENU_BEEP          },
+#ifdef ENABLE_VOICE
+	{"Voice",   VOICE_ID_VOICE_PROMPT,  MENU_VOICE         },
+#endif
+	{"Roger",   VOICE_ID_INVALID,       MENU_ROGER         },
+	{"STE",     VOICE_ID_INVALID,       MENU_STE           }, /* CTCSS/DCS squelch tail elimination   */
+	{"RP STE",  VOICE_ID_INVALID,       MENU_RP_STE        },
+	{"1 Call",  VOICE_ID_INVALID,       MENU_1_CALL        },
+#ifdef ENABLE_VOX
+	{"VOX",     VOICE_ID_VOX,           MENU_VOX           }, /* Voice-activated TX (optional)        */
+#endif
+	{"BatVol",  VOICE_ID_INVALID,       MENU_VOL           },
+	{"Sql",     VOICE_ID_SQUELCH,       MENU_SQL           }, /* Global squelch level                 */
+
+	/* -- Hardware calibration (visible to all users in FRS mode) */
+	{"BatCal",  VOICE_ID_INVALID,       MENU_BATCAL        }, /* Battery voltage calibration          */
+	{"BatTyp",  VOICE_ID_INVALID,       MENU_BATTYP        }, /* Battery type                         */
+	{"Reset",   VOICE_ID_INITIALISATION, MENU_RESET        }, /* Factory reset                        */
+
+	{"",        VOICE_ID_INVALID,       0xff               }  /* end of list — DO NOT delete          */
+};
+
+/*
+ * In FRS appliance mode there are no hidden menu items — the
+ * dangerous items have been removed entirely, not just hidden.
+ * Set FIRST_HIDDEN_MENU_ITEM past the end of the list so the
+ * "press PTT+side to unlock" path is a no-op.
+ */
+const uint8_t FIRST_HIDDEN_MENU_ITEM = 0xFFu;
+
+#endif /* FRS_APPLIANCE_BUILD */
 
 const char gSubMenu_TXP[][5] =
 {

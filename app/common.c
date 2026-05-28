@@ -5,6 +5,10 @@
 #include "settings.h"
 #include "ui/ui.h"
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "frs_appliance/frs.h"
+#endif
+
 void COMMON_KeypadLockToggle() 
 {
 
@@ -43,6 +47,13 @@ void COMMON_SwitchVFOs()
 
 void COMMON_SwitchVFOMode()
 {
+#ifdef FRS_APPLIANCE_BUILD
+    /* FRS appliance is permanently in channel mode.
+     * VFO mode enables arbitrary frequency entry, which would
+     * allow transmitting on non-FRS frequencies.  Block this. */
+    return;
+#endif
+
 #ifdef ENABLE_NOAA
     if (gEeprom.VFO_OPEN && !IS_NOAA_CHANNEL(gTxVfo->CHANNEL_SAVE))
 #else
