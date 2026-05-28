@@ -52,6 +52,25 @@ ENABLE_SWD                    ?= 0
 ENABLE_OVERLAY                ?= 0
 ENABLE_LTO                    ?= 1
 
+# ---- FRS APPLIANCE MODE ----------------------------------------
+# Set FRS_APPLIANCE_BUILD=1 to build a TX-restricted firmware that
+# only allows transmission on the 22 FCC Part 95B FRS channels.
+#
+# REGULATORY NOTICE:
+#   Firmware modifications alone do NOT make non-certified hardware
+#   an FCC-certified FRS radio.
+#
+# When enabled this build option:
+#  - Restricts TX to the exact 22 FRS channel frequencies
+#  - Enforces narrowband (12.5 kHz) on all channels
+#  - Enforces power limits (0.5 W on ch 8-14, 2 W elsewhere)
+#  - Removes all TX-unlock and band-expansion menu items
+#  - Sanitizes EEPROM on boot and after CHIRP programming
+#  - Disables VFO (frequency-entry) mode
+#  - Shows "FRS nn" on the home screen
+#  - Shows "FRS ONLY" when a TX attempt is rejected
+FRS_APPLIANCE_BUILD           ?= 0
+
 #############################################################
 
 TARGET = firmware
@@ -376,6 +395,31 @@ ifeq ($(ENABLE_UART_RW_BK_REGS),1)
 endif
 ifeq ($(ENABLE_CUSTOM_MENU_LAYOUT),1)
 	CFLAGS  += -DENABLE_CUSTOM_MENU_LAYOUT
+endif
+
+# ---- FRS APPLIANCE BUILD ---------------------------------------
+ifeq ($(FRS_APPLIANCE_BUILD),1)
+	CFLAGS  += -DFRS_APPLIANCE_BUILD=1
+
+	# FRS appliance disables features that create non-FRS TX paths:
+	#   AIRCOPY: raw channel copy that could bypass frequency checks
+	#   SPECTRUM: wideband scan creates VFO-like TX exposure
+	#   TX1750: 1750 Hz burst transmit on arbitrary frequency
+	ENABLE_AIRCOPY  := 0
+	ENABLE_SPECTRUM := 0
+	ENABLE_TX1750   := 0
+	# Force TX_WHEN_AM off (FRS is FM-only)
+	ENABLE_TX_WHEN_AM := 0
+	# Force F_CAL_MENU off in release (calibration only in dev builds)
+	ENABLE_F_CAL_MENU := 0
+
+	# FRS appliance object files
+	OBJS += frs_appliance/frs.o
+	OBJS += frs_appliance/frs_chirp.o
+	OBJS += frs_appliance/frs_tests.o
+
+	# Rename output to distinguish FRS build from stock
+	TARGET := firmware_frs
 endif
 
 LDFLAGS =

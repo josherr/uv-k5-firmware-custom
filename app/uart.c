@@ -38,6 +38,10 @@
 #include "settings.h"
 #include "version.h"
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "frs_appliance/frs.h"
+#endif
+
 #if defined(ENABLE_OVERLAY)
 	#include "sram-overlay.h"
 #endif
@@ -306,6 +310,26 @@ static void CMD_051D(const uint8_t *pBuffer)
 
 	if (!bIsLocked)
 	{
+#ifdef FRS_APPLIANCE_BUILD
+		/*
+		 * FRS APPLIANCE — CHIRP / SERIAL WRITE SANITIZER
+		 *
+		 * Before writing any data to EEPROM we scrub the write buffer
+		 * to enforce FRS constraints:
+		 *  - FRS channel frequency slots are forced to legal values
+		 *  - TX offsets on FRS channels are zeroed
+		 *  - Bandwidth on FRS channels is forced to narrow
+		 *  - Power on channels 8–14 is capped to LOW
+		 *  - Scrambler is cleared on all FRS channels
+		 *  - F_LOCK is clamped; UNLOCK_ALL is rejected
+		 *
+		 * The Data buffer is mutable here — we modify it in-place
+		 * before the write loop so EEPROM always receives safe values.
+		 */
+		FRS_SanitizeSerialWrite(pCmd->Offset, pCmd->Size,
+		                        (uint8_t *)pCmd->Data);
+#endif
+
 		unsigned int i;
 		for (i = 0; i < (pCmd->Size / 8); i++)
 		{
@@ -319,8 +343,14 @@ static void CMD_051D(const uint8_t *pBuffer)
 				EEPROM_WriteBuffer(Offset, &pCmd->Data[i * 8U]);
 		}
 
-		if (bReloadEeprom)
+		if (bReloadEeprom) {
 			SETTINGS_InitEEPROM();
+#ifdef FRS_APPLIANCE_BUILD
+			/* Re-run boot validation after any EEPROM reload triggered
+			 * by serial programming to ensure FRS state is restored. */
+			FRS_BootValidation();
+#endif
+		}
 	}
 
 	SendReply(&Reply, sizeof(Reply));

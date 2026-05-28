@@ -42,6 +42,10 @@
 #include "ui/menu.h"
 #include "ui/ui.h"
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "frs_appliance/frs.h"
+#endif
+
 #ifndef ARRAY_SIZE
 	#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #endif
@@ -402,10 +406,23 @@ void MENU_AcceptSetting(void)
 			}
 			return;
 
-		case MENU_TXP:
-			gTxVfo->OUTPUT_POWER = gSubMenuSelection;
+		case MENU_TXP: {
+			uint8_t power = (uint8_t)gSubMenuSelection;
+#ifdef FRS_APPLIANCE_BUILD
+			/* Enforce per-channel power limit.
+			 * Channels 8–14 (idx 7–13) may not exceed OUTPUT_POWER_LOW
+			 * per 47 CFR §95.567(b).  Clamp silently — the TX gate
+			 * will also reject illegal power if this is bypassed. */
+			if (IS_MR_CHANNEL(gTxVfo->CHANNEL_SAVE)) {
+				uint8_t max_pwr = FRS_GetMaxPower(gTxVfo->CHANNEL_SAVE);
+				if (power > max_pwr)
+					power = max_pwr;
+			}
+#endif
+			gTxVfo->OUTPUT_POWER = power;
 			gRequestSaveChannel = 1;
 			return;
+		}
 
 		case MENU_T_DCS:
 			pConfig = &gTxVfo->freq_config_TX;
@@ -725,10 +742,19 @@ void MENU_AcceptSetting(void)
 			return;
 
 		case MENU_350TX:
+#ifndef FRS_APPLIANCE_BUILD
 			gSetting_350TX = gSubMenuSelection;
+#endif
 			break;
 
 		case MENU_F_LOCK: {
+#ifdef FRS_APPLIANCE_BUILD
+			/* In FRS appliance mode MENU_F_LOCK does not appear in the
+			 * menu list.  If it is somehow reached, silently reject any
+			 * selection that would expand TX beyond FRS channels. */
+			(void)gSubMenuSelection;
+			return;
+#else
 			if(gSubMenuSelection == F_LOCK_NONE) { // select 10 times to enable
 				gUnlockAllTxConfCnt++;
 				if(gUnlockAllTxConfCnt < 10)
@@ -739,13 +765,18 @@ void MENU_AcceptSetting(void)
 
 			gSetting_F_LOCK = gSubMenuSelection;
 			break;
+#endif
 		}
 		case MENU_200TX:
+#ifndef FRS_APPLIANCE_BUILD
 			gSetting_200TX = gSubMenuSelection;
+#endif
 			break;
 
 		case MENU_500TX:
+#ifndef FRS_APPLIANCE_BUILD
 			gSetting_500TX = gSubMenuSelection;
+#endif
 			break;
 
 		case MENU_350EN:

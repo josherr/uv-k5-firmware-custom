@@ -19,6 +19,10 @@
 #include "settings.h"
 #include <assert.h>
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "frs_appliance/frs.h"
+#endif
+
 // the BK4819 has 2 bands it covers, 18MHz ~ 630MHz and 760MHz ~ 1300MHz
 
 #define BX4819_band1_lower 1800000
@@ -163,6 +167,24 @@ int32_t TX_freq_check(const uint32_t Frequency)
 {	// return '0' if TX frequency is allowed
 	// otherwise return '-1'
 
+#ifdef FRS_APPLIANCE_BUILD
+	/*
+	 * FRS APPLIANCE MODE — TX ALLOW-LIST
+	 *
+	 * Only the 22 exact FRS channel frequencies (47 CFR §95.563) are
+	 * permitted for transmission.  Every other frequency is rejected.
+	 *
+	 * This is the outermost TX frequency gate.  FRS_IsTxAllowed() in
+	 * radio.c provides additional parameter validation (bandwidth, power,
+	 * modulation, etc.) before the PA is enabled.
+	 */
+	for (uint8_t i = 0u; i < FRS_NUM_CHANNELS; i++) {
+		if (Frequency == frs_channel_table[i])
+			return 0;  /* exact FRS channel match — allowed */
+	}
+	return -1;  /* not an FRS channel frequency — blocked */
+#else
+
 	if (Frequency < frequencyBandTable[0].lower || Frequency > frequencyBandTable[BAND_N_ELEM - 1].upper)
 		return 1;  // not allowed outside this range
 
@@ -234,6 +256,8 @@ int32_t TX_freq_check(const uint32_t Frequency)
 
 	// dis-allowed TX frequency
 	return -1;
+
+#endif /* FRS_APPLIANCE_BUILD else */
 }
 
 int32_t RX_freq_check(const uint32_t Frequency)

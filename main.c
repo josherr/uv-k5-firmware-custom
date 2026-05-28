@@ -29,6 +29,10 @@
 #include "settings.h"
 #include "version.h"
 
+#ifdef FRS_APPLIANCE_BUILD
+#include "frs_appliance/frs.h"
+#endif
+
 #include "app/app.h"
 #include "app/dtmf.h"
 #include "bsp/dp32g030/gpio.h"
@@ -95,6 +99,25 @@ void Main(void)
 	SETTINGS_InitEEPROM();
 	SETTINGS_WriteBuildOptions();
 	SETTINGS_LoadCalibration();
+
+#ifdef FRS_APPLIANCE_BUILD
+	/*
+	 * FRS APPLIANCE BOOT SEQUENCE
+	 *
+	 * 1. FRS_RunSelfTest() verifies that the firmware image is internally
+	 *    consistent.  It spins forever on failure — the radio cannot
+	 *    transmit from a corrupted build.
+	 *
+	 * 2. FRS_BootValidation() sanitizes all 22 FRS channel EEPROM blocks
+	 *    and clamps global settings to FRS-safe values.  It must run after
+	 *    SETTINGS_InitEEPROM() so the gEeprom struct is populated.
+	 *
+	 * These calls happen before RADIO_ConfigureChannel so that the VFO
+	 * structs loaded from EEPROM always reflect sanitized values.
+	 */
+	FRS_RunSelfTest();
+	FRS_BootValidation();
+#endif
 
 	RADIO_ConfigureChannel(0, VFO_CONFIGURE_RELOAD);
 	RADIO_ConfigureChannel(1, VFO_CONFIGURE_RELOAD);
