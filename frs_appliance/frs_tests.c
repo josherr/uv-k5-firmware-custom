@@ -46,7 +46,7 @@ static_assert((int)BK4819_FILTER_BW_NARROW != (int)BK4819_FILTER_BW_WIDE,
     "FAIL: BK4819_FILTER_BW_NARROW must not equal BK4819_FILTER_BW_WIDE");
 
 /* ================================================================
- * 4. The 22 FRS channels fit in the MR channel pool (0–199)
+ * 4. The 22 FRS channels fit in the MR channel pool (0-199)
  * ================================================================ */
 static_assert(FRS_NUM_CHANNELS <= 200u,
     "FAIL: FRS channels must fit within MR_CHANNEL_FIRST..MR_CHANNEL_LAST");
@@ -69,9 +69,10 @@ static_assert(_FRS_CH14_EXPECTED == 46771250u, "CH14 frequency constant wrong");
 static_assert(_FRS_CH15_EXPECTED == 46255000u, "CH15 frequency constant wrong");
 static_assert(_FRS_CH22_EXPECTED == 46272500u, "CH22 frequency constant wrong");
 
-/* The 467 MHz sub-band gap (ch 8–14) is separated from the main
- * 462 MHz band by ~5 MHz.  Verify the boundary constants. */
-static_assert(_FRS_CH08_EXPECTED > _FRS_CH01_EXPECTED + 4500000u,
+/* The 467 MHz sub-band gap (ch 8-14) is separated from the main
+ * 462 MHz band by ~5 MHz.  Verify the boundary constants.
+ * Values are in 10 Hz units: 450000 = 4.5 MHz, actual gap is 5 MHz. */
+static_assert(_FRS_CH08_EXPECTED > _FRS_CH01_EXPECTED + 450000u,
     "CH08 must be ~5 MHz above CH01 (467 vs 462 MHz)");
 
 /* ================================================================
@@ -93,29 +94,29 @@ static_assert((int)F_LOCK_ALL >= 0,
  * TEST PLAN (executed at runtime by FRS_RunSelfTest in frs.c)
  * ================================================================
  *
- * T01 – FRS_NUM_CHANNELS == 22
- * T02 – Every channel frequency is in the 462/467 MHz FRS sub-bands
- * T03 – FRS_GetMaxPower(ch 7..13) == OUTPUT_POWER_LOW
- * T04 – FRS_GetMaxPower(ch 0..6 and 14..21) == OUTPUT_POWER_HIGH
- * T05 – FRS_IsTxAllowed returns false for channel_save == 22 (out of range)
- * T06 – FRS_IsTxAllowed returns true  for valid channel 0 with correct settings
- * T07 – FRS_IsTxAllowed returns false for channels 8–14 with OUTPUT_POWER_HIGH
- * T08 – FRS_IsTxAllowed returns false for non-FRS frequency (433 MHz)
- * T09 – FRS_IsTxAllowed returns false for wideband BW on FRS channel
- * T10 – FRS_IsTxAllowed returns false when scrambler is enabled
+ * T01 - FRS_NUM_CHANNELS == 22
+ * T02 - Every channel frequency is in the 462/467 MHz FRS sub-bands
+ * T03 - FRS_GetMaxPower(ch 7..13) == OUTPUT_POWER_LOW
+ * T04 - FRS_GetMaxPower(ch 0..6 and 14..21) == OUTPUT_POWER_HIGH
+ * T05 - FRS_IsTxAllowed returns false for channel_save == 22 (out of range)
+ * T06 - FRS_IsTxAllowed returns true  for valid channel 0 with correct settings
+ * T07 - FRS_IsTxAllowed returns false for channels 8-14 with OUTPUT_POWER_HIGH
+ * T08 - FRS_IsTxAllowed returns false for non-FRS frequency (433 MHz)
+ * T09 - FRS_IsTxAllowed returns false for wideband BW on FRS channel
+ * T10 - FRS_IsTxAllowed returns false when scrambler is enabled
  *
  * Additional integration checks (manual / bench verification):
  *
- * I01 – After boot, EEPROM channel 0 frequency == frs_channel_table[0]
- * I02 – After boot, EEPROM channel 13 frequency == frs_channel_table[13]
- * I03 – Pressing PTT on ch 8 with HIGH power → VFO_STATE_TX_DISABLE
- * I04 – CHIRP write of 146.520 MHz to slot 0 → read back shows 462.5625 MHz
- * I05 – CHIRP write of F_LOCK_NONE → read back shows F_LOCK_ALL
- * I06 – Scan halts on FRS ch with matching CTCSS; remains muted without match
- * I07 – Binary grep for "UNLOCK" string → not found in FRS release binary
- * I08 – Binary grep for "UNLOCK\nALL" → not found in FRS release binary
- * I09 – VFO mode toggle key → no effect (radio stays in channel mode)
- * I10 – F_LOCK menu item → not visible in FRS appliance menu
+ * I01 - After boot, EEPROM channel 0 frequency == frs_channel_table[0]
+ * I02 - After boot, EEPROM channel 13 frequency == frs_channel_table[13]
+ * I03 - Pressing PTT on ch 8 with HIGH power -> VFO_STATE_TX_DISABLE
+ * I04 - CHIRP write of 146.520 MHz to slot 0 -> read back shows 462.5625 MHz
+ * I05 - CHIRP write of F_LOCK_NONE -> read back shows F_LOCK_ALL
+ * I06 - Scan halts on FRS ch with matching CTCSS; remains muted without match
+ * I07 - Binary grep for "UNLOCK" string -> not found in FRS release binary
+ * I08 - Binary grep for "UNLOCK\nALL" -> not found in FRS release binary
+ * I09 - VFO mode toggle key -> no effect (radio stays in channel mode)
+ * I10 - F_LOCK menu item -> not visible in FRS appliance menu
  */
 
 #endif /* FRS_APPLIANCE_BUILD */
