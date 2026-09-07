@@ -1,4 +1,3 @@
-
 # compile options (see README.md for descriptions)
 # 0 = disable
 # 1 = enable
@@ -401,17 +400,24 @@ endif
 ifeq ($(FRS_APPLIANCE_BUILD),1)
 	CFLAGS  += -DFRS_APPLIANCE_BUILD=1
 
-	# FRS appliance disables features that create non-FRS TX paths:
-	#   AIRCOPY: raw channel copy that could bypass frequency checks
+	# FRS appliance removes features that create non-FRS TX paths or are
+	# dead code in appliance mode.  Use filter-out because these flags were
+	# already appended above (the ifeq blocks run before this block).
 	#   SPECTRUM: wideband scan creates VFO-like TX exposure
+	#   COPY_CHAN_TO_VFO: VFO mode is blocked; this function is dead code
+	#   AIRCOPY: raw channel copy that could bypass frequency checks
 	#   TX1750: 1750 Hz burst transmit on arbitrary frequency
-	ENABLE_AIRCOPY  := 0
-	ENABLE_SPECTRUM := 0
-	ENABLE_TX1750   := 0
-	# Force TX_WHEN_AM off (FRS is FM-only)
-	ENABLE_TX_WHEN_AM := 0
-	# Force F_CAL_MENU off in release (calibration only in dev builds)
-	ENABLE_F_CAL_MENU := 0
+	#   TX_WHEN_AM: FRS is FM-only
+	#   F_CAL_MENU: calibration only for dev builds
+	CFLAGS := $(filter-out \
+		-DENABLE_SPECTRUM \
+		-DENABLE_COPY_CHAN_TO_VFO \
+		-DENABLE_AIRCOPY \
+		-DENABLE_TX1750 \
+		-DENABLE_TX_WHEN_AM \
+		-DENABLE_F_CAL_MENU, \
+		$(CFLAGS))
+	OBJS := $(filter-out app/spectrum.o app/aircopy.o ui/aircopy.o, $(OBJS))
 
 	# FRS appliance object files
 	OBJS += frs_appliance/frs.o
